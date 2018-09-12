@@ -4,14 +4,14 @@ Exercise bike computer implemented with a PIC32MX270F256B microcontroller.
 
 TODO: everything.
 
-Magnetic Resistance Exercise Bike.
+Replace a dead computer on a magnetic resistance exercise bike.
 
 
 
 
-Main Components:
+## Original Components:
 
-Microcontroller ???
+Microcontroller (Unknown - covered with a blob of resin).
 LCD Display and backlight (perspex sheet with six white LEDs in one end).
 Heart rate monitor add-on board.
 EEPROM ???
@@ -52,7 +52,7 @@ Both hands must be on the pads to get a HRM signal.
 
 Speed and Distance Calculation:
 
-Rear Wheel/Front Sprocket ration.
+Rear Wheel/Front Sprocket ratio.
 
 
 LCD Display:
@@ -62,19 +62,21 @@ Console Keypad:
 
 
 
-DESIGN:
+## NEW DESIGN:
 
 Parts List:
 
 PIC32MX270F256B microcontroller.
 Microbridge PIC32 programmer with USB-Serial interface and 3.3V supply voltage regulator.
 http://geoffg.net/microbridge.html
-
+Open Smart 2.4" TFT LCD Touch screen.
+LED Pulse Sensor.
+Laser Proximity Sensor.
 Protoyping vero board.
 2 x 100nF ceramic capacitors.
 1 x 10uF Tantalum capacitor.
 2 x LEDs.
 2 x 330ohm resistors.
 3 x 10kohm resistors.
-Touch screen.
+
 
