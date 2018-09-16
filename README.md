@@ -1,26 +1,34 @@
 # PIC32-EXB
 
-Exercise bike computer implemented with a PIC32MX270F256B microcontroller.
+Replace a dead computer on a magnetic resistance exercise bike, new design implemented with a PIC32MX270F256B microcontroller.
 
 TODO: everything.
 
-Replace a dead computer on a magnetic resistance exercise bike.
 
 
 
-
-## Original Components:
+## 1. ORIGINAL COMPONENTS
 
 Microcontroller (Unknown - covered with a blob of resin).
+
 LCD Display and backlight (perspex sheet with six white LEDs in one end).
+
 Heart rate monitor add-on board.
+
 EEPROM ???
+
 L911 H Bridge motor controller IC.
+
 2 x 3.3v regulators.
+
 DC Motor and gearhead.
+
 Reed switch for cadence measurement.
+
 Control console keypad.
+
 2 x 5 Kohm potentiometers for motor position sensing.
+
 
 
 Resistance Control:
@@ -47,10 +55,10 @@ A small add-on board uses a bio-impedance circuit to measure heart rate via two 
 Both hands must be on the pads to get a HRM signal.
 (for more info see https://en.wikipedia.org/wiki/Impedance_cardiography)
 
-(LED HRM sensor http://www.ni.com/white-paper/14248/en/)
-(LED HRM sensor https://www.sparkfun.com/products/11574)
+
 
 Speed and Distance Calculation:
+
 
 Rear Wheel/Front Sprocket ratio.
 
@@ -62,21 +70,47 @@ Console Keypad:
 
 
 
-## NEW DESIGN:
+## 2. NEW DESIGN
 
 Parts List:
 
 PIC32MX270F256B microcontroller.
+
 Microbridge PIC32 programmer with USB-Serial interface and 3.3V supply voltage regulator.
 http://geoffg.net/microbridge.html
+
 Open Smart 2.4" TFT LCD Touch screen.
+
 LED Pulse Sensor.
+
 Laser Proximity Sensor.
+
 Protoyping vero board.
+
 2 x 100nF ceramic capacitors.
+
 1 x 10uF Tantalum capacitor.
+
 2 x LEDs.
+
 2 x 330ohm resistors.
+
 3 x 10kohm resistors.
+
+
+
+!["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/exercisebike.png "Circuit Prototype")
+
+
+## 3. ACKNOWLEDGEMENTS
+
+
+## 4. TECHNICAL NOTES
+
+(LED HRM sensor http://www.ni.com/white-paper/14248/en/)
+
+(LED HRM sensor https://www.sparkfun.com/products/11574)
+
+
 
 

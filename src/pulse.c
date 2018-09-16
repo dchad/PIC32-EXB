@@ -15,41 +15,22 @@
 
 #include "pulse.h"
 
-volatile int rate[10];                    // array to hold last ten IBI values
-volatile unsigned long sampleCounter = 0;          // used to determine pulse timing
-volatile unsigned long lastBeatTime = 0;           // used to find IBI
-volatile int P =2048;                      // used to find peak in pulse wave, seeded
-volatile int T = 2048;                     // used to find trough in pulse wave, seeded
-volatile int thresh = 2048;                // used to find instant moment of heart beat, seeded
-volatile int amp = 410;                    // used to hold amplitude of pulse waveform, seeded
-volatile int firstBeat = 1;        // used to seed rate array so we startup with reasonable BPM
-volatile int secondBeat = 0;       // used to seed rate array so we startup with reasonable BPM
+static volatile int rate[10];                    // array to hold last ten IBI values
+static volatile unsigned long sampleCounter = 0;          // used to determine pulse timing
+static volatile unsigned long lastBeatTime = 0;           // used to find IBI
+static volatile int P =2048;                      // used to find peak in pulse wave, seeded
+static volatile int T = 2048;                     // used to find trough in pulse wave, seeded
+static volatile int thresh = 2048;                // used to find instant moment of heart beat, seeded
+static volatile int amp = 410;                    // used to hold amplitude of pulse waveform, seeded
+static volatile int firstBeat = 1;        // used to seed rate array so we startup with reasonable BPM
+static volatile int secondBeat = 0;       // used to seed rate array so we startup with reasonable BPM
 
 // these variables are volatile because they are used during the interrupt service routine!
-volatile int BPM;                   // used to hold the pulse rate
-volatile int Signal;                // holds the incoming raw data
-volatile int IBI = 600;             // holds the time between beats, must be seeded! 
-volatile int Pulse = 0;     // 1 when pulse wave is high, 0 when it's low
-volatile int QS = 0;        // becomes 1 when Arduoino finds a beat.
-
-// SparkIntervalTimer uses hardware timers that are otherwise allocated for PIN functions (ADC/PWM)
-// The first allocated timer is TIMR2 on Core and TIMR3 on Photon which is assigned to A0 & A1 ADC/PWM channels
-// So use A2 (though A0 & A1 ADC should still work on Core and not affected on Photon) for pulse input,
-// D7 (onboard LED) for blink LED and D6 for fancy LED
-//  VARIABLES
-//int pulsePin = A2;				// Pulse Sensor purple wire connected to analog pin 0
-//int blinkPin = D7;				// pin to blink led at each beat
-//int fadePin = D6;				// pin to do fancy classy fading blink at each beat
-//int fadeRate = 0;				// used to fade LED on with PWM on fadePin
-
-// Setup a 2ms h/w timer
-//int pulseTimer;
-
-//void interruptSetup(void)
-//{
-  // Allocate a timer to throw an interrupt every 2mS.
-  //pulseTimer.begin(pulseISR, 2000, uSec);  // blinkLED to run every 2ms (2000 * 1us period)
-//} 
+static volatile int BPM;                   // used to hold the pulse rate
+static volatile int Signal;                // holds the incoming raw data
+static volatile int IBI = 600;             // holds the time between beats, must be seeded! 
+static volatile int Pulse = 0;     // 1 when pulse wave is high, 0 when it's low
+static volatile int QS = 0;        // becomes 1 when Arduino finds a beat.
 
 
 // THIS IS THE TIMER (2 on Core, 3 on Photon) INTERRUPT SERVICE ROUTINE. 

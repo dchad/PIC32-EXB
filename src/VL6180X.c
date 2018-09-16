@@ -136,6 +136,8 @@ void VL6180X_init()
     VL6180X_write(SYSALS__INTERMEASUREMENT_PERIOD, 0x31);
     VL6180X_write(SYSTEM__INTERRUPT_CONFIG_GPIO, 0x24);
     //VL6180X_write(SYSRANGE__RANGE_CHECK_ENABLES, 0x00);
+    
+    //VL6180X_write(SYSTEM__FRESH_OUT_OF_RESET, 0x00);
 }
 
 uint8_t VL6180X_getRangeResult()
@@ -155,13 +157,19 @@ void VL6180X_clearResetFlag()
 {
 	VL6180X_write(SYSTEM__FRESH_OUT_OF_RESET, 0x00);
 }
+
 void VL6180X_setInterrupt(uint8_t int_flags)
 {
 	VL6180X_write(SYSTEM__INTERRUPT_CONFIG_GPIO, int_flags);
 }
 
+void VL6180X_startSingleRangeMeasurement()
+{
+	VL6180X_write(SYSRANGE__START, 0x01);
+}
 
-void VL6180X_startRangeMeasurement()
+
+void VL6180X_startContinuousRangeMeasurement()
 {
 	VL6180X_write(SYSRANGE__START, 0x03);
 }
@@ -174,8 +182,8 @@ bool VL6180X_isRangeResultReady()
 		return 1;
 	}
 }
-
-uint16_t VL6180X_rangeReturnRate(){
+uint16_t VL6180X_rangeReturnRate()
+{
 	uint16_t rate = 0;
 	rate += VL6180X_read(RESULT__RANGE_RETURN_RATE);
 	rate = rate << 8;
@@ -183,7 +191,8 @@ uint16_t VL6180X_rangeReturnRate(){
 	return rate;
 }
 
-bool VL6180X_testConnection(){
+bool VL6180X_testConnection()
+{
 	return VL6180X_read(IDENTIFICATION__MODEL_ID) == 0xB4;
 }
 

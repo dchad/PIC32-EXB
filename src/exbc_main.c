@@ -3,9 +3,13 @@
 
   Author: Derek Chadwick
 
-  File Name: exb1_main.c
+  File Name: exbc_main.c
 
-  Description: Test program for core timer interrupts.
+  Description: Controller for a magnetic resistance exercise bike using 
+               a PIC32MX270F256B microcontroller. The PIC32 runs at 40MHz
+               using the internal Fast Resistor Capacitor clock.
+               PC communications is via serial UART1 and an FTDI232 USB
+               to serial adapter board.
   
   Date: 22/08/2018
   
@@ -98,99 +102,41 @@ static char user_msg_buffer[256];
 static char tft_command_buffer[60]; // Max LCD command length is 60 bytes.
 static volatile unsigned int pulse_sample;
 static volatile unsigned int pulse_sample_buffer[500]; // 500 samples per second.
-static int pulse_sample_index;
-static int pulse_sample_buffer_full;
-static int bpm; // pulse rate.
-static int bpm_interval; // 15 second send interval.
-static int get_bpm;
-static int prox_range;
-static int get_prox_range;
-static int rpm_detect;
-static int rpm_detect_count;
+static unsigned int pulse_sample_index;
+static unsigned int pulse_sample_buffer_full;
+static unsigned int bpm; // pulse rate.
+static unsigned int bpm_interval; // 15 second send interval.
+static unsigned int get_bpm;
+static unsigned int prox_range;
+static unsigned int get_prox_range;
+static unsigned int rpm;
+static unsigned int rpm_detect;
+static unsigned int rpm_interval;
+static unsigned int rpm_detect_count;
+static unsigned int rpm_last_detect_secs;
+static unsigned int rpm_last_count;
+static unsigned int average_rpm;
+static unsigned int get_rpm;
+static unsigned int kilojoules;
+static unsigned int user_age;
+static unsigned int user_weight;
+static unsigned int user_gender;
+static unsigned int increase_resistance;
+static unsigned int decrease_resistance;
+static unsigned int resistance_level;
+static unsigned int session_seconds;
+static unsigned int session_minutes;
+static unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
+static unsigned int blink_count;
 
+// Function declarations.
 int adc_read(char analog_pin);
 void configure_adc();
+void configure_io();
+void configure_interrupts();
+void initialise_vars();
 void process_user_command();
 
-void configure_interrupts()
-{
-   // Configure Interrupts, see datasheet: TABLE 7-1: INTERRUPT IRQ, VECTOR AND BIT LOCATION
-   __builtin_disable_interrupts();   // step 2: disable interrupts at CPU
-   
-   // Enable multi vector interrupts
-   //INTCONbits.MVEC = 0x1;
-   INTEnableSystemMultiVectoredInt(); //NOTE: check the source code for this???
-   
-   // Configure the UART1 interrupt.
-   IEC1bits.U1RXIE = 0;
-   U1STAbits.URXISEL = 0x0; // RX interrupt when receive buffer not empty
-   IFS1bits.U1RXIF = 0;     // clear the rx interrupt flag. For tx or error interrupts you would also need to clear the respective flags
-   IPC8bits.U1IP = 1;       // interrupt priority
-   IEC1bits.U1RXIE = 1;     // enable the RX interrupt
-
-   // Configure the UART2 interrupt.
-   IEC1bits.U2RXIE = 0;
-   U2STAbits.URXISEL = 0x0; // RX interrupt when receive buffer not empty
-   IFS1bits.U2RXIF = 0;     // clear the rx interrupt flag. For tx or error interrupts you would also need to clear the respective flags
-   IPC9bits.U2IP = 2;       // interrupt priority
-   IEC1bits.U2RXIE = 1;     // enable the RX interrupt
- 
-   // Configure timer2 interrupt (the hard way!!!).
-   IEC0CLR = 0x0200;       // disable Timer2 int, IEC0<9>
-   IFS0CLR = 0x0200;       // clear Timer2 int flag, IFS0<9>
-   IPC2CLR = 0x001f;       // clear Timer2 priority/subpriority fields IPC2<4:0>
-   IPC2SET = 0x0010;       // set Timer2 int priority = 4, IPC2<4:2>
-   IPC2SET = 0x0000;       // set Timer2 int subpriority = 0, IPC2<1:0>
-   IEC0SET = 0x0200;       // enable Timer2 int, IEC0<9>
-
-   // Configure change notification interrupts.
-   CNCONBbits.ON = 1;     // CN is enabled
-   CNCONBbits.SIDL = 0;   // CPU Idle does not affect CN operation
-   CNENBbits.CNIEB13 = 1; // Enable CN13/RB13 pin for interrupt detection
-   IEC1bits.CNBIE = 1;    // Enable CN interrupts
-   IPC8bits.CNIP = 3;     // Interrupt priority to 3.
-   IFS1bits.CNBIF = 0;    // Clear CN interrupt flag. 
- 
-   // Configure core timer interrupt.
-   IPC0bits.CTIP = 6;                // interrupt priority
-   IPC0bits.CTIS = 0;                // subp is 0, which is the default
-   IFS0bits.CTIF = 0;                // clear CT interrupt flag
-   IEC0bits.CTIE = 1;                // enable core timer interrupt
-   _CP0_SET_COUNT(0);                // set core timer counter to 0
-   _CP0_SET_COMPARE(CORE_TICKS);     // CP0_COMPARE register set to 40 M
-  
-   __builtin_enable_interrupts();    // step 7: CPU interrupts enabled
-   
-   return;
-}
-
-void configure_io()
-{
-   T1CON = 0x8000; // TMR1 on, prescaler 1:1
-   PR1 = 0xffff; // Set timer 1 period to its max (2^16-1)
-   T2CON = 0x8070; // Turn on 16-bit Timer2, set prescaler to 1:256 (frequency is Pbclk / 256)
-   PR2 = set_PR2(0.002); // ADC read every 2 milliseconds (500 samples per second)
-
-   ANSELA = 0; // TODO: set RA0 as ADC input from pulse sensor.
-   ANSELAbits.ANSA0 = 1;   // set RA0 (AN0) to analog
-   ANSELB = 0; // Set all of PortB as digital.
-   
-   TRISA = 0;  // Set all pins to outputs by default, (SEE DATASHEET SECTION 2.8 UNUSED I/O PINS). 
-   TRISB = 0;  // TRISBbits.TRISB5 = 0; RB5 -> Output TRISBbits.TRISB3 = 1; RB3 -> Input
-   TRISBbits.TRISB4 = 1;  // Push button.
-   TRISBbits.TRISB2 = 1;  // Make sure UART1 rx pin is configured as in INPUT!!!
-   TRISBbits.TRISB11 = 1; // Make sure UART2 rx pin is configured as in INPUT!!!
-   TRISBbits.TRISB13 = 1; // RPM sensor(reed switch).
-   TRISAbits.TRISA0 = 1;  // ADC input from pulse sensor.
-   
-   LATA = 0; // Set all pin output values to 0, (SEE DATASHEET SECTION 2.8 UNUSED I/O PINS).
-   LATB = 0;
-   
-   LATAbits.LATA4 = 0; // Data comms LED off.
-   LATBbits.LATB5 = 1; // Power LED on.
-   
-   return;
-}
 
 int main(void) 
 {
@@ -205,8 +151,19 @@ int main(void)
    bpm = 0;
    prox_range = 0;
    get_prox_range = 0;
+   rpm = 0;
    rpm_detect = 0;
+   rpm_interval = 0;
    rpm_detect_count = 0;
+   rpm_last_detect_secs = 0;
+   rpm_last_count = 0;
+   get_rpm = 0;
+   increase_resistance = 0;
+   decrease_resistance = 0;
+   resistance_level = 1;
+   session_seconds = 0;
+   session_minutes = 0;
+   blink_count = 0;
    xzero(uart1_input_buffer, 256); // CLEAR THE BUFFERS!!!
    xzero(uart2_input_buffer, 256);
    xzero(user_command_buffer, 256);
@@ -217,11 +174,12 @@ int main(void)
    configure_io();
    
    UART1_Configure(38400); // PC Communications.
-   //UART2_Configure(9600);  // TFT Display.
+   //UART2_Configure(9600);  // OPEN-SMART 2.4" TFT Display.
    
    i2c_master_setup();
    
-   VL6180X_init();
+   //VL6180X_init();
+   //VL6180X_clearResetFlag();
            
    configure_adc();
    
@@ -234,9 +192,9 @@ int main(void)
    while(1)
    {
       // delay by BLINK_DELAY ms
-      delay_ms(100);
+      delay_ms(1);
       
-      if (PORTBbits.RB4 == 0) // If test button pressed.
+      if (PORTAbits.RA4 == 0) // Test/reset button pressed.
       {
          // Test both serial ports are working.
          Serial_Transmit_U1("Obey me and hit the button.\r\n\r\n> ");
@@ -247,44 +205,123 @@ int main(void)
          // TODO: test rpm sensor.
          // TODO: test h-bridge driver and motor.
          // TODO: test PC comms.
+         // TODO: test motor control, invert motor control pins RB14 and RB15
+         // TODO: reset session variables.
          
+         get_rpm = 1;
+         delay_ms(500);
+
       }
-      else
+
+      if (PORTAbits.RA2 == 0) // Increase resistance push button pressed.
       {
-         LATAINV = 0x0010; // Infinite loop detector.
-         
-         if (get_bpm == 1)
-         {
-            sprintf(user_msg_buffer, "\r\nU9:BPM = %3u bpm.\r\n> ", bpm);
-            Serial_Transmit_U1(user_msg_buffer);
-            xzero(user_msg_buffer, 256);
-            get_bpm = 0;     
-         }
-         
-         if (get_prox_range == 1)
-         {
-            VL6180X_startRangeMeasurement();
-            delay_ms(50);
-            if (VL6180X_isRangeResultReady() == 1)
-            {
-               prox_range = VL6180X_getRangeResult();
-               sprintf(user_msg_buffer, "\r\nUA:RANGE = %3u mm.\r\n> ", prox_range);
-               Serial_Transmit_U1(user_msg_buffer);
-               xzero(user_msg_buffer, 256);
-               VL6180X_clearInterruptFlag(0x07); // ( CLEAR_RANGE_INT | CLEAR_ALS_INT | CLEAR_ERR_INT )
-               get_prox_range = 0;
-            } 
-         }
-         
-         if (rpm_detect == 1)
-         {
-            sprintf(user_msg_buffer, "\r\nU8:RPM Sensor = %1u.\r\n> ", PORTBbits.RB13);
-            Serial_Transmit_U1(user_msg_buffer);
-            xzero(user_msg_buffer, 256);
-            rpm_detect_count++;
-            rpm_detect = 0;
-         }
+         LATBbits.LATB14 = 0;
+         LATBbits.LATB15 = 1;
+         delay_ms(1000);
+         LATBbits.LATB14 = 0;
+         LATBbits.LATB15 = 0;
+         increase_resistance = 0;  
+         //get_prox_range = 1;
       }
+      
+      if (PORTAbits.RA3 == 0) // Decrease resistance push button pressed.
+      {
+      
+         LATBbits.LATB14 = 1;
+         LATBbits.LATB15 = 0;         
+         delay_ms(1000);
+         LATBbits.LATB14 = 0;
+         LATBbits.LATB15 = 0;
+         decrease_resistance = 0;
+         //get_prox_range = 1;
+      }
+
+      if (get_bpm == 1)
+      {
+         sprintf(user_msg_buffer, "\r\nU9:BPM = %3u bpm.\r\n> ", bpm);
+         Serial_Transmit_U1(user_msg_buffer);
+         xzero(user_msg_buffer, 256);
+         get_bpm = 0;     
+      }
+
+      if (get_rpm == 1)
+      {
+         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
+         Serial_Transmit_U1(user_msg_buffer);
+         xzero(user_msg_buffer, 256);
+         if (session_seconds > 0)
+         {
+            session_minutes = session_seconds / 60;
+            if (session_minutes > 0)
+            {
+               average_rpm = rpm_detect_count / session_minutes;
+            }
+            else
+            {
+               average_rpm = 0;
+            }
+            sprintf(user_msg_buffer, "\r\nU8:Average RPM = %3u rpm.\r\n> ", average_rpm);
+            Serial_Transmit_U1(user_msg_buffer);
+            xzero(user_msg_buffer, 256);
+         }
+         get_rpm = 0;     
+      }
+      
+      if (get_prox_range == 1)
+      {
+         VL6180X_startSingleRangeMeasurement();
+         delay_ms(5);
+         if (VL6180X_isRangeResultReady() == 1)
+         {
+            int valid = 0;
+            prox_range = VL6180X_getRangeResult();
+            valid = VL6180X_dataValidation();
+            if (valid > 1)
+            {
+               sprintf(user_msg_buffer, "\r\nUA:RANGE ERROR = %u\r\n> ", valid);
+            }
+            else
+            {
+               sprintf(user_msg_buffer, "\r\nUA:RANGE = %3u mm.\r\n> ", prox_range);
+            }
+            Serial_Transmit_U1(user_msg_buffer);
+            xzero(user_msg_buffer, 256); 
+            VL6180X_clearInterruptFlag(0x07); // ( CLEAR_RANGE_INT | CLEAR_ALS_INT | CLEAR_ERR_INT )
+         } 
+            
+         get_prox_range = 0;
+      }
+
+      if (rpm_detect == 1)
+      {
+         //sprintf(user_msg_buffer, "\r\nU8:RPM Sensor = %1u.\r\n> ", PORTBbits.RB13);
+         //Serial_Transmit_U1(user_msg_buffer);
+         //xzero(user_msg_buffer, 256);
+         //rpm_detect_count++;
+         LATBINV = 0x0010; // Blink LED
+         rpm_detect = 0;
+      }
+   
+      if (increase_resistance == 1) // PC command received, increase resistance.
+      {
+         LATBbits.LATB14 = 0;
+         LATBbits.LATB15 = 1;
+         delay_ms(1000);
+         LATBbits.LATB14 = 0;
+         LATBbits.LATB15 = 0;
+         increase_resistance = 0;   
+      }
+      
+      if (decrease_resistance == 1) // PC command received, decrease resistance.
+      {
+         LATBbits.LATB14 = 1;
+         LATBbits.LATB15 = 0;         
+         delay_ms(1000);
+         LATBbits.LATB14 = 0;
+         LATBbits.LATB15 = 0;
+         decrease_resistance = 0;
+      }
+      //LATBINV = 0x0010; // Blink LED
    }
   
   return(0);
@@ -293,6 +330,13 @@ int main(void)
 void __ISR(_CORE_TIMER_VECTOR, IPL6SOFT) CoreTimerISR(void) {
    IFS0bits.CTIF = 0;                // clear CT int flag IFS0<0>, same as IFS0CLR=0x0001
    LATBINV = 0x0020;
+   //if ((increase_resistance == 1) || (decrease_resistance == 1))
+   //{
+   //   check proximity sensor.   
+   //}
+   session_seconds++;
+   //session_minutes = session_seconds / 60;
+  
    _CP0_SET_COUNT(0);                // set core timer counter to 0
    _CP0_SET_COMPARE(CORE_TICKS);     // must set CP0_COMPARE again after interrupt
 }
@@ -300,25 +344,42 @@ void __ISR(_CORE_TIMER_VECTOR, IPL6SOFT) CoreTimerISR(void) {
 // Timer2 Interrupt Service Routine
 void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
    // TODO: READ ADC INPUT FROM PULSE SENSOR MODULE ON PIN RA0/AN0
-   
+   // TODO: calculate RPM.
    pulse_sample = adc_read(0);
    pulse_sample_buffer[pulse_sample_index] = pulse_sample;
    pulse_sample_index++;
    bpm = pulse_ISR(pulse_sample);
    
-   if (pulse_sample_index >= 500)
+   if (pulse_sample_index >= 500) // 2 millisecond sample rate.
    {
       pulse_sample_index = 0;
       bpm_interval++;
-      //if (bpm_interval > 15) // Send BPM to LCD every 15 seconds.
-      //{
+      if (bpm_interval > 15) // Send BPM to LCD every 15 seconds.
+      {
          //sprintf(tft_command_buffer, "BPM: %3u", bpm);
          //sprintf(user_msg_buffer, "AN0: %4u (%5.3f volts) \r\n\r\n> ", pulse_sample, pulse_sample * VOLTS_PER_COUNT);
          //TFT_print_string(tft_command_buffer);
          //cannot do this here, if the tft is currently executing a command it will white screen
          //and have to be reset.
-         //bpm_interval = 0;
-      //}
+         bpm_interval = 0;
+      }
+   }
+   rpm_interval++;
+   if (rpm_interval > 3000) // 6 seconds.
+   {
+      int temp_count;
+
+      temp_count = rpm_detect_count - rpm_last_count;
+      if (temp_count > 0)
+      {
+         rpm = 10 * temp_count;
+      }
+      else
+      {
+         rpm = 0;
+      }
+      rpm_interval = 0;
+      rpm_last_count = rpm_detect_count;
    }
    
    // Clears the interrupt flag so we don't immediately enter the interrupt again...
@@ -357,15 +418,15 @@ void __ISR(_UART_2_VECTOR, IPL2SOFT) IntUart2Handler(void) {
    if (IFS1bits.U2RXIF) // Check if interrupt generated by a RX event.
    {       
       in_ch = U2RXREG;
-      uart2_input_buffer[tft_msg_length] = in_ch;
-      if (in_ch == (char)0xEF)  // TFT end of message id.
-      {
-         tft_set_status(1);
-         tft_msg_length = 0;
-         xzero(uart2_input_buffer, 256);
-      }
+      //uart2_input_buffer[tft_msg_length] = in_ch;
+      //if (in_ch == (char)0xEF)  // TFT end of message id.
+      //{
+      //   tft_set_status(1);
+      //   tft_msg_length = 0;
+      //   xzero(uart2_input_buffer, 256);
+      //}
       
-      tft_msg_length++;
+      //tft_msg_length++;
      
       //U2TXREG = in_ch;           
       
@@ -378,13 +439,14 @@ void __ISR(_UART_2_VECTOR, IPL2SOFT) IntUart2Handler(void) {
 }
 
 void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
-   int bitson;
    
-   if (PORTBbits.RB7 == 1)
+   if (PORTBbits.RB13 == 0)
    {
       rpm_detect_count++;
+      rpm_last_detect_secs = session_seconds;
+      rpm_detect = 1;
    }
-   rpm_detect = 1;
+
    IFS1bits.CNBIF = 0;    // Clear CN interrupt flag.    
 }
 
@@ -408,6 +470,94 @@ void configure_adc()
    return;
 }
 
+void configure_interrupts()
+{
+   // Configure Interrupts, see datasheet: TABLE 7-1: INTERRUPT IRQ, VECTOR AND BIT LOCATION
+   __builtin_disable_interrupts();   // step 2: disable interrupts at CPU
+   
+   // Enable multi vector interrupts
+   //INTCONbits.MVEC = 0x1;
+   INTEnableSystemMultiVectoredInt(); //NOTE: check the source code for this???
+   
+   // Configure the UART1 interrupt.
+   IEC1bits.U1RXIE = 0;
+   U1STAbits.URXISEL = 0x0; // RX interrupt when receive buffer not empty
+   IFS1bits.U1RXIF = 0;     // clear the rx interrupt flag. For tx or error interrupts you would also need to clear the respective flags
+   IPC8bits.U1IP = 1;       // interrupt priority
+   IEC1bits.U1RXIE = 1;     // enable the RX interrupt
+
+   // Configure the UART2 interrupt.
+   IEC1bits.U2RXIE = 0;
+   U2STAbits.URXISEL = 0x0; // RX interrupt when receive buffer not empty
+   IFS1bits.U2RXIF = 0;     // clear the rx interrupt flag. For tx or error interrupts you would also need to clear the respective flags
+   IPC9bits.U2IP = 2;       // interrupt priority
+   IEC1bits.U2RXIE = 1;     // enable the RX interrupt
+ 
+   // Configure timer2 interrupt.
+   IEC0CLR = 0x0200;       // disable Timer2 int, IEC0<9>
+   IFS0CLR = 0x0200;       // clear Timer2 int flag, IFS0<9>
+   IPC2CLR = 0x001f;       // clear Timer2 priority/subpriority fields IPC2<4:0>
+   IPC2SET = 0x0010;       // set Timer2 int priority = 4, IPC2<4:2>
+   IPC2SET = 0x0000;       // set Timer2 int subpriority = 0, IPC2<1:0>
+   IEC0SET = 0x0200;       // enable Timer2 int, IEC0<9>
+
+   // Configure change notification interrupts.
+   CNCONBbits.ON = 1;     // CN is enabled
+   CNCONBbits.SIDL = 0;   // CPU Idle does not affect CN operation
+   CNENBbits.CNIEB13 = 1; // Enable CN13/RB13 pin for interrupt detection
+   CNENBbits.CNIEB7 = 1;
+   IEC1bits.CNBIE = 1;    // Enable CN interrupts
+   IPC8bits.CNIP = 3;     // Interrupt priority to 3.
+   IFS1bits.CNBIF = 0;    // Clear CN interrupt flag. 
+ 
+   // Configure core timer interrupt.
+   IPC0bits.CTIP = 6;                // interrupt priority
+   IPC0bits.CTIS = 0;                // subp is 0, which is the default
+   IFS0bits.CTIF = 0;                // clear CT interrupt flag
+   IEC0bits.CTIE = 1;                // enable core timer interrupt
+   _CP0_SET_COUNT(0);                // set core timer counter to 0
+   _CP0_SET_COMPARE(CORE_TICKS);     // CP0_COMPARE register set to 20 M
+  
+   __builtin_enable_interrupts();    // step 7: CPU interrupts enabled
+   
+   return;
+}
+
+void configure_io()
+{
+   T1CON = 0x8000; // TMR1 on, prescaler 1:1
+   PR1 = 0xffff; // Set timer 1 period to its max (2^16-1)
+   T2CON = 0x8070; // Turn on 16-bit Timer2, set prescaler to 1:256 (frequency is Pbclk / 256)
+   PR2 = set_PR2(0.002); // ADC read every 2 milliseconds (500 samples per second)
+
+   ANSELA = 0; // TODO: set RA0 as ADC input from pulse sensor.
+   ANSELAbits.ANSA0 = 1;   // set RA0 (AN0) to analog
+   ANSELB = 0; // Set all of PortB as digital.
+   
+   TRISA = 0;  // Set all pins to outputs by default, (SEE DATASHEET SECTION 2.8 UNUSED I/O PINS). 
+   TRISB = 0;  // TRISBbits.TRISB5 = 0; RB5 -> Output TRISBbits.TRISB3 = 1; RB3 -> Input
+   
+   TRISBbits.TRISB2 = 1;  // Make sure UART1 rx pin is configured as in INPUT!!!
+   TRISBbits.TRISB7 = 1;
+   TRISBbits.TRISB11 = 1; // Make sure UART2 rx pin is configured as in INPUT!!!
+   TRISBbits.TRISB13 = 1; // RPM sensor(reed switch).
+   TRISAbits.TRISA0 = 1;  // ADC input from pulse sensor.
+   TRISAbits.TRISA2 = 1;  // Increase resistance push button.
+   TRISAbits.TRISA3 = 1;  // Decrease resistance push button.
+   TRISAbits.TRISA4 = 1;  // Test/reset push button.
+   
+   LATA = 0; // Set all pin output values to 0, (SEE DATASHEET SECTION 2.8 UNUSED I/O PINS).
+   LATB = 0;
+   
+   LATBbits.LATB4 = 1;  // Process loop LED on.
+   LATBbits.LATB5 = 1;  // Power LED on.
+   LATBbits.LATB14 = 0; // Motor control pins to 0 or 1 (Both same state turns motor off).
+   LATBbits.LATB15 = 0; // RB15 high and RB14 low = motor on, increase resistance (CW).
+                        // RB15 low and RB14 high = motor on, decrease resistance (CCW).
+   
+   return;
+}
+
 void process_user_command()
 {
    // Serial_Transmit_U1("\r\nACK!\r\n\r\n> ");
@@ -423,18 +573,20 @@ void process_user_command()
    // 2. STOP ("U2:\r\n")
    // 3. PAUSE ("U3:\r\n")
    // 4. SET RESISTANCE ("U4: resistance \r\n") where resistance levels = { 1 ... 10 }
-   // 5. SET TARGET ("U5: target \r\n") where target is in kilojoules = { 1 ... 10000 }
+   // 5. SET TARGET ("U5: [ TIME | DIST | KJ ] target \r\n") where target is in minutes, kilometers or kilojoules = { 1 ... 10000 }
    // 6. RESET ("U6:\r\n")
-   // 7. SEND TIME
+   // 7. SEND TIME ("U7:\r\n")
    // 8. SEND RPM
    // 9. SEND BPM
    // 10. SEND PROXIMITY SENSOR RANGE
    // 11. SEND SPEED
    // 12. SEND DISTANCE
    // 13. SEND RESISTANCE LEVEL
-   // 14. SET USER AGE ("UD: xxx\r\n"), xxx = years.
-   // 15. SET USER WEIGHT ("UE: xxx\r\n"), xxx = kilograms
-   // 16. SET USER GENDER
+   // 14. SET USER AGE ("UE: xxx\r\n"), xxx = years.
+   // 15. SET USER WEIGHT ("UF: xxx\r\n"), xxx = kilograms
+   // 16. SET USER GENDER ("UG: [ M | F ] \r\n" )
+   // 17. INCREASE RESISTANCE ("UH:\r\n")
+   // 18. DECREASE RESISTANCE ("UI:\r\n")
    // 
    // A user command always receives a response in the form of:
    // Ux:<data>\r\n    for data requests.
@@ -451,12 +603,25 @@ void process_user_command()
       case '5': break;
       case '6': break;
       case '7': break;
-      case '8': break;
+      case '8': get_rpm = 1; break;
       case '9': get_bpm = 1; break;
       case 'A': get_prox_range = 1; break;
+      case 'B': break;
+      case 'C': break;
+      case 'D': break;
+      case 'E': break;
+      case 'F': break;
+      case 'G': break;
+      case 'H': increase_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
+      case 'I': decrease_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
       default: Serial_Transmit_U1("\r\nNACK!\r\n\r\n> ");
    }
    
+   return;
+}
+
+void initialise_vars()
+{
    return;
 }
 
