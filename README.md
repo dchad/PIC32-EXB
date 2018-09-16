@@ -68,6 +68,16 @@ LCD Display:
 
 Console Keypad:
 
+7 Push Buttons on control console.
+
+  - Start/Stop.
+  - Increase Resistance.
+  - Decrease Resistance.
+  - Reset.
+  - Select Program.
+  - Up.
+  - Down.
+
 
 
 ## 2. NEW DESIGN
@@ -96,6 +106,8 @@ Protoyping vero board.
 2 x 330ohm resistors.
 
 3 x 10kohm resistors.
+
+DC - DC Switch Mode Buck Regulator.
 
 
 

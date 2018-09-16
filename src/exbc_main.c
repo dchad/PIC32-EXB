@@ -505,7 +505,7 @@ void configure_interrupts()
    CNCONBbits.ON = 1;     // CN is enabled
    CNCONBbits.SIDL = 0;   // CPU Idle does not affect CN operation
    CNENBbits.CNIEB13 = 1; // Enable CN13/RB13 pin for interrupt detection
-   CNENBbits.CNIEB7 = 1;
+   //CNENBbits.CNIEB7 = 1;
    IEC1bits.CNBIE = 1;    // Enable CN interrupts
    IPC8bits.CNIP = 3;     // Interrupt priority to 3.
    IFS1bits.CNBIF = 0;    // Clear CN interrupt flag. 
@@ -538,7 +538,7 @@ void configure_io()
    TRISB = 0;  // TRISBbits.TRISB5 = 0; RB5 -> Output TRISBbits.TRISB3 = 1; RB3 -> Input
    
    TRISBbits.TRISB2 = 1;  // Make sure UART1 rx pin is configured as in INPUT!!!
-   TRISBbits.TRISB7 = 1;
+   //TRISBbits.TRISB7 = 1;
    TRISBbits.TRISB11 = 1; // Make sure UART2 rx pin is configured as in INPUT!!!
    TRISBbits.TRISB13 = 1; // RPM sensor(reed switch).
    TRISAbits.TRISA0 = 1;  // ADC input from pulse sensor.
