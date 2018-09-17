@@ -176,7 +176,7 @@ int main(void)
    UART1_Configure(38400); // PC Communications.
    //UART2_Configure(9600);  // OPEN-SMART 2.4" TFT Display.
    
-   i2c_master_setup();
+   //i2c_master_setup();
    
    //VL6180X_init();
    //VL6180X_clearResetFlag();
@@ -249,28 +249,27 @@ int main(void)
          sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
          Serial_Transmit_U1(user_msg_buffer);
          xzero(user_msg_buffer, 256);
-         if (session_seconds > 0)
+         
+         session_minutes = session_seconds / 60;
+         if (session_minutes > 0)
          {
-            session_minutes = session_seconds / 60;
-            if (session_minutes > 0)
-            {
-               average_rpm = rpm_detect_count / session_minutes;
-            }
-            else
-            {
-               average_rpm = 0;
-            }
-            sprintf(user_msg_buffer, "\r\nU8:Average RPM = %3u rpm.\r\n> ", average_rpm);
-            Serial_Transmit_U1(user_msg_buffer);
-            xzero(user_msg_buffer, 256);
+            average_rpm = rpm_detect_count / session_minutes;
          }
+         else
+         {
+            average_rpm = 0;
+         }
+         sprintf(user_msg_buffer, "\r\nU8:Average RPM = %3u rpm.\r\n> ", average_rpm);
+         Serial_Transmit_U1(user_msg_buffer);
+         xzero(user_msg_buffer, 256);
+        
          get_rpm = 0;     
       }
       
       if (get_prox_range == 1)
       {
          VL6180X_startSingleRangeMeasurement();
-         delay_ms(5);
+         delay_ms(1);
          if (VL6180X_isRangeResultReady() == 1)
          {
             int valid = 0;
@@ -335,7 +334,6 @@ void __ISR(_CORE_TIMER_VECTOR, IPL6SOFT) CoreTimerISR(void) {
    //   check proximity sensor.   
    //}
    session_seconds++;
-   //session_minutes = session_seconds / 60;
   
    _CP0_SET_COUNT(0);                // set core timer counter to 0
    _CP0_SET_COMPARE(CORE_TICKS);     // must set CP0_COMPARE again after interrupt

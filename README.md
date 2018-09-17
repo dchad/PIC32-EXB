@@ -31,16 +31,16 @@ Control console keypad.
 
 
 
-Resistance Control:
+### Resistance Control:
 
 The pedal resistance is controlled by a set of magnets on a lever arm just in front of the steel rear wheel.
 The distance between the magnets and the wheel rim is adjusted by a DC motor attached via a cable to the
 lever arm. The closer the magnets get to the wheel rim the greater the resistance. The user adjusts the resistance
-by pressing UP/DOWN buttons on the control console. The computer provides 10 levels of resistance from very easy
-to incredibly hard.
+by pressing UP/DOWN buttons on the control console or selecting a programmed routine. 
+The controller provides 10 levels of resistance from very easy to incredibly hard.
 
 
-Pedal Crank RPM Measurement:
+### Pedal Crank RPM Measurement:
 
 The cadence (pedal speed) is measured by a reed switch attached to the frame just above the crank axle ("spindle").
 The reed switch is normally open, it is closed once every pedal revolution by a magnet attached to the chainwheel
@@ -49,7 +49,7 @@ to maintain 3.3V at the input pin until the magnet closes the switch and the vol
 pin goes to ground.
 
 
-Heart Rate Monitor:
+### Heart Rate Monitor:
 
 A small add-on board uses a bio-impedance circuit to measure heart rate via two metal pads on the handle bars. 
 Both hands must be on the pads to get a HRM signal.
@@ -57,16 +57,16 @@ Both hands must be on the pads to get a HRM signal.
 
 
 
-Speed and Distance Calculation:
+### Speed and Distance Calculation:
 
 
-Rear Wheel/Front Sprocket ratio.
+### Rear Wheel/Front Sprocket ratio.
 
 
-LCD Display:
+### LCD Display:
 
 
-Console Keypad:
+### Console Keypad:
 
 7 Push Buttons on control console.
 
@@ -110,8 +110,12 @@ Protoyping vero board.
 DC - DC Switch Mode Buck Regulator.
 
 
+### Circuit Diagram:
+
 
 !["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/exercisebike.png "Circuit Prototype")
+
+
 
 
 ## 3. ACKNOWLEDGEMENTS
