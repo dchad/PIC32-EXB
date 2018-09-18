@@ -140,6 +140,9 @@ void process_user_command();
 
 int main(void) 
 {
+   
+   SYSTEMConfigPerformance(SYSCLK);
+   
    user_command_recvd = 0;
    user_command_length = 0;
    tft_msg_recvd = 0;
@@ -169,7 +172,7 @@ int main(void)
    xzero(user_command_buffer, 256);
    xzero(user_msg_buffer, 256);
    
-   SYSTEMConfigPerformance(SYSCLK);
+   
    
    configure_io();
    
@@ -269,7 +272,7 @@ int main(void)
       if (get_prox_range == 1)
       {
          VL6180X_startSingleRangeMeasurement();
-         delay_ms(1);
+         delay_ms(5);
          if (VL6180X_isRangeResultReady() == 1)
          {
             int valid = 0;

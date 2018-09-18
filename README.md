@@ -53,17 +53,13 @@ pin goes to ground.
 
 A small add-on board uses a bio-impedance circuit to measure heart rate via two metal pads on the handle bars. 
 Both hands must be on the pads to get a HRM signal.
-(for more info see https://en.wikipedia.org/wiki/Impedance_cardiography)
-
-
-
-### Speed and Distance Calculation:
-
-
-### Rear Wheel/Front Sprocket ratio.
+(https://en.wikipedia.org/wiki/Impedance_cardiography)
 
 
 ### LCD Display:
+
+Custom LCD mounted on the main board with two elastomeric rubber strip conductors. 
+(https://en.wikipedia.org/wiki/Elastomeric_connector)
 
 
 ### Console Keypad:
@@ -87,13 +83,15 @@ Parts List:
 PIC32MX270F256B microcontroller.
 
 Microbridge PIC32 programmer with USB-Serial interface and 3.3V supply voltage regulator.
-http://geoffg.net/microbridge.html
+(http://geoffg.net/microbridge.html)
 
 Open Smart 2.4" TFT LCD Touch screen.
 
 LED Pulse Sensor.
 
-Laser Proximity Sensor.
+Laser ToF Proximity Sensor.
+
+L9110 H-Bridge Motor Driver.
 
 Protoyping vero board.
 
@@ -101,13 +99,17 @@ Protoyping vero board.
 
 1 x 10uF Tantalum capacitor.
 
+1 x 47uF Electrolytic capacitor.
+
 2 x LEDs.
 
 2 x 330ohm resistors.
 
-3 x 10kohm resistors.
+7 x 10kohm resistors.
 
 DC - DC Switch Mode Buck Regulator.
+
+3 x Push Button Momentary Switches.
 
 
 ### Circuit Diagram:
@@ -116,6 +118,24 @@ DC - DC Switch Mode Buck Regulator.
 !["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/exercisebike.png "Circuit Prototype")
 
 
+!["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/lcd-test-sm.jpg "Circuit Prototype")
+
+    Testing LCD screen and pulse sensor.
+
+!["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/motor-test-sm.jpg "Circuit Prototype")
+
+    Testing motor and gearhead assembly.
+
+!["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/motor-prox-sm.jpg "Circuit Prototype")
+
+    Testing VL6180X proximity sensor mounted on the magnet lever arm assembly.
+    
+    
+
+### Speed and Distance Calculation:
+
+
+### Rear Wheel/Front Sprocket ratio.
 
 
 ## 3. ACKNOWLEDGEMENTS
