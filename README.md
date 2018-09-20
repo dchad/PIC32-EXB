@@ -15,7 +15,7 @@ LCD Display and backlight (perspex sheet with six white LEDs in one end).
 
 Heart rate monitor add-on board.
 
-EEPROM ???
+93LC66B 4K Serial EEPROM. 
 
 L911 H Bridge motor controller IC.
 
@@ -120,15 +120,15 @@ DC - DC Switch Mode Buck Regulator.
 
 !["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/lcd-test-sm.jpg "Circuit Prototype")
 
-    Testing LCD screen and pulse sensor.
+            Testing LCD screen and pulse sensor.
 
 !["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/motor-test-sm.jpg "Circuit Prototype")
 
-    Testing motor and gearhead assembly.
+            Testing motor and gearhead assembly.
 
 !["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/motor-prox-sm.jpg "Circuit Prototype")
 
-    Testing VL6180X proximity sensor mounted on the magnet lever arm assembly.
+            Testing VL6180X proximity sensor mounted on the magnet lever arm assembly.
     
     
 
@@ -148,5 +148,19 @@ DC - DC Switch Mode Buck Regulator.
 (LED HRM sensor https://www.sparkfun.com/products/11574)
 
 
+Calorie/kilojoules calculation:
+
+Male: C = ((-55.0969 + (0.6309 x HR) + (0.1988 x W) + (0.2017 x A))/4.184) x 60 x T
+Female: C = ((-20.4022 + (0.4472 x HR) - (0.1263 x W) + (0.074 x A))/4.184) x 60 x T
+
+where
+
+HR = Heart rate (in beats/minute)
+
+W = Weight (in kilograms)
+
+A = Age (in years)
+
+T = Exercise duration time (in hours)
 
 

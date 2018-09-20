@@ -172,16 +172,14 @@ int main(void)
    xzero(user_command_buffer, 256);
    xzero(user_msg_buffer, 256);
    
-   
-   
    configure_io();
    
    UART1_Configure(38400); // PC Communications.
    //UART2_Configure(9600);  // OPEN-SMART 2.4" TFT Display.
    
-   //i2c_master_setup();
+   i2c_master_setup();
    
-   //VL6180X_init();
+   VL6180X_init();
    //VL6180X_clearResetFlag();
            
    configure_adc();
@@ -195,7 +193,7 @@ int main(void)
    while(1)
    {
       // delay by BLINK_DELAY ms
-      delay_ms(1);
+      delay_ms(5);
       
       if (PORTAbits.RA4 == 0) // Test/reset button pressed.
       {
@@ -212,7 +210,8 @@ int main(void)
          // TODO: reset session variables.
          
          get_rpm = 1;
-         delay_ms(500);
+         get_prox_range = 1;
+         delay_ms(1000);
 
       }
 
@@ -272,20 +271,20 @@ int main(void)
       if (get_prox_range == 1)
       {
          VL6180X_startSingleRangeMeasurement();
-         delay_ms(5);
+         delay_ms(25);
          if (VL6180X_isRangeResultReady() == 1)
          {
             int valid = 0;
             prox_range = VL6180X_getRangeResult();
-            valid = VL6180X_dataValidation();
-            if (valid > 1)
-            {
-               sprintf(user_msg_buffer, "\r\nUA:RANGE ERROR = %u\r\n> ", valid);
-            }
-            else
-            {
+            //valid = VL6180X_dataValidation();
+            //if (valid > 1)
+            //{
+            //   sprintf(user_msg_buffer, "\r\nUA:RANGE ERROR = %u\r\n> ", valid);
+            //}
+            //else
+            //{
                sprintf(user_msg_buffer, "\r\nUA:RANGE = %3u mm.\r\n> ", prox_range);
-            }
+            //}
             Serial_Transmit_U1(user_msg_buffer);
             xzero(user_msg_buffer, 256); 
             VL6180X_clearInterruptFlag(0x07); // ( CLEAR_RANGE_INT | CLEAR_ALS_INT | CLEAR_ERR_INT )
@@ -332,10 +331,7 @@ int main(void)
 void __ISR(_CORE_TIMER_VECTOR, IPL6SOFT) CoreTimerISR(void) {
    IFS0bits.CTIF = 0;                // clear CT int flag IFS0<0>, same as IFS0CLR=0x0001
    LATBINV = 0x0020;
-   //if ((increase_resistance == 1) || (decrease_resistance == 1))
-   //{
-   //   check proximity sensor.   
-   //}
+   
    session_seconds++;
   
    _CP0_SET_COUNT(0);                // set core timer counter to 0
@@ -366,19 +362,9 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
       }
    }
    rpm_interval++;
-   if (rpm_interval > 3000) // 6 seconds.
+   if (rpm_interval > 10000) // 20 seconds.
    {
-      int temp_count;
-
-      temp_count = rpm_detect_count - rpm_last_count;
-      if (temp_count > 0)
-      {
-         rpm = 10 * temp_count;
-      }
-      else
-      {
-         rpm = 0;
-      }
+      rpm = 3 * (rpm_detect_count - rpm_last_count);
       rpm_interval = 0;
       rpm_last_count = rpm_detect_count;
    }
