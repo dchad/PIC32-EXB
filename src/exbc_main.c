@@ -102,32 +102,33 @@ static char user_msg_buffer[256];
 static char tft_command_buffer[60]; // Max LCD command length is 60 bytes.
 static volatile unsigned int pulse_sample;
 static volatile unsigned int pulse_sample_buffer[500]; // 500 samples per second.
-static unsigned int pulse_sample_index;
-static unsigned int pulse_sample_buffer_full;
-static unsigned int bpm; // pulse rate.
-static unsigned int bpm_interval; // 15 second send interval.
-static unsigned int get_bpm;
-static unsigned int prox_range;
-static unsigned int get_prox_range;
-static unsigned int rpm;
-static unsigned int rpm_detect;
-static unsigned int rpm_interval;
-static unsigned int rpm_detect_count;
-static unsigned int rpm_last_detect_secs;
-static unsigned int rpm_last_count;
-static unsigned int average_rpm;
-static unsigned int get_rpm;
-static unsigned int kilojoules;
-static unsigned int user_age;
-static unsigned int user_weight;
-static unsigned int user_gender;
-static unsigned int increase_resistance;
-static unsigned int decrease_resistance;
-static unsigned int resistance_level;
-static unsigned int session_seconds;
-static unsigned int session_minutes;
-static unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
-static unsigned int blink_count;
+static volatile unsigned int pulse_sample_index;
+static volatile unsigned int pulse_sample_buffer_full;
+static volatile unsigned int bpm; // pulse rate.
+static volatile unsigned int bpm_interval; // 15 second send interval.
+static volatile unsigned int get_bpm;
+static volatile unsigned int prox_range;
+static volatile unsigned int get_prox_range;
+static volatile unsigned int rpm;
+static volatile unsigned int rpm_detect;
+static volatile unsigned int rpm_interval;
+static volatile unsigned int rpm_detect_count;
+static volatile unsigned int rpm_last_detect_secs;
+static volatile unsigned int rpm_last_count;
+static volatile unsigned int average_rpm;
+static volatile unsigned int get_rpm;
+static volatile unsigned int kilojoules;
+static volatile unsigned int user_age;
+static volatile unsigned int user_weight;
+static volatile unsigned int user_gender;
+static volatile unsigned int increase_resistance;
+static volatile unsigned int decrease_resistance;
+static volatile unsigned int resistance_level;
+static volatile unsigned int session_seconds;
+static volatile unsigned int session_minutes;
+static volatile unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
+static volatile unsigned int blink_count;
+static volatile unsigned int millisecond_counter; // Timing the rpm/cadence.
 
 // Function declarations.
 int adc_read(char analog_pin);
@@ -167,6 +168,7 @@ int main(void)
    session_seconds = 0;
    session_minutes = 0;
    blink_count = 0;
+   millisecond_counter = 0;
    xzero(uart1_input_buffer, 256); // CLEAR THE BUFFERS!!!
    xzero(uart2_input_buffer, 256);
    xzero(user_command_buffer, 256);
@@ -361,13 +363,15 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
          bpm_interval = 0;
       }
    }
-   rpm_interval++;
-   if (rpm_interval > 10000) // 20 seconds.
-   {
-      rpm = 3 * (rpm_detect_count - rpm_last_count);
-      rpm_interval = 0;
-      rpm_last_count = rpm_detect_count;
-   }
+   //rpm_interval++;
+   //if (rpm_interval > 10000) // 20 seconds.
+   //{
+   //   rpm = 3 * (rpm_detect_count - rpm_last_count);
+   //   rpm_interval = 0;
+   //   rpm_last_count = rpm_detect_count;
+   //}
+   
+   millisecond_counter += 2;
    
    // Clears the interrupt flag so we don't immediately enter the interrupt again...
    IFS0CLR = 0x0200;       // clear timer 2 int flag, IFS0<9>
@@ -429,8 +433,12 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
    
    if (PORTBbits.RB13 == 0)
    {
-      rpm_detect_count++;
-      rpm_last_detect_secs = session_seconds;
+      
+      
+      rpm = 60000 / millisecond_counter;
+      millisecond_counter = 0;
+      //rpm_detect_count++;
+      //rpm_last_detect_secs = session_seconds;
       rpm_detect = 1;
    }
 
