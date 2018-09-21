@@ -151,6 +151,7 @@ DC - DC Switch Mode Buck Regulator.
 Calorie/kilojoules calculation:
 
 Male: C = ((-55.0969 + (0.6309 x HR) + (0.1988 x W) + (0.2017 x A))/4.184) x 60 x T
+
 Female: C = ((-20.4022 + (0.4472 x HR) - (0.1263 x W) + (0.074 x A))/4.184) x 60 x T
 
 where
