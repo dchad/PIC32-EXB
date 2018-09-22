@@ -57,9 +57,9 @@
 #pragma config CP = OFF                 // Code Protect (Protection Disabled)
 
 #include <xc.h>
-#include <sys/attribs.h> 
 #include <plib.h>
-#include <stdlib.h>
+//#include <sys/attribs.h> 
+//#include <stdlib.h>
 
 #include "uart.h"
 //#include "tft.h"
@@ -90,8 +90,8 @@
 #define VOLTS_PER_COUNT (3.3/1024)
 #define set_PR2(seconds) (seconds * SYSCLK / 256) // Timer 2 period = (20000000/256 * secs))
 
-static char uart1_input_buffer[256];
-static char uart2_input_buffer[256];
+static volatile char uart1_input_buffer[256];
+static volatile char uart2_input_buffer[256];
 static volatile int user_command_recvd;
 static volatile int user_command_length;
 static volatile int tft_msg_recvd;
@@ -213,31 +213,20 @@ int main(void)
          
          get_rpm = 1;
          get_prox_range = 1;
-         delay_ms(1000);
+         delay_ms(500);
 
       }
 
       if (PORTAbits.RA2 == 0) // Increase resistance push button pressed.
       {
-         LATBbits.LATB14 = 0;
-         LATBbits.LATB15 = 1;
-         delay_ms(1000);
-         LATBbits.LATB14 = 0;
-         LATBbits.LATB15 = 0;
-         increase_resistance = 0;  
-         //get_prox_range = 1;
+         increase_resistance = 1;
+         get_prox_range = 1;
       }
       
       if (PORTAbits.RA3 == 0) // Decrease resistance push button pressed.
       {
-      
-         LATBbits.LATB14 = 1;
-         LATBbits.LATB15 = 0;         
-         delay_ms(1000);
-         LATBbits.LATB14 = 0;
-         LATBbits.LATB15 = 0;
-         decrease_resistance = 0;
-         //get_prox_range = 1;
+         decrease_resistance = 1;
+         get_prox_range = 1;
       }
 
       if (get_bpm == 1)
@@ -276,7 +265,7 @@ int main(void)
          delay_ms(25);
          if (VL6180X_isRangeResultReady() == 1)
          {
-            int valid = 0;
+            //int valid = 0;
             prox_range = VL6180X_getRangeResult();
             //valid = VL6180X_dataValidation();
             //if (valid > 1)
@@ -297,31 +286,33 @@ int main(void)
 
       if (rpm_detect == 1)
       {
-         //sprintf(user_msg_buffer, "\r\nU8:RPM Sensor = %1u.\r\n> ", PORTBbits.RB13);
-         //Serial_Transmit_U1(user_msg_buffer);
-         //xzero(user_msg_buffer, 256);
-         //rpm_detect_count++;
-         LATBINV = 0x0010; // Blink LED
+         LATBINV = 0x0010; // Blink LED on pin RB5.
          rpm_detect = 0;
       }
    
       if (increase_resistance == 1) // PC command received, increase resistance.
       {
-         LATBbits.LATB14 = 0;
-         LATBbits.LATB15 = 1;
-         delay_ms(1000);
-         LATBbits.LATB14 = 0;
-         LATBbits.LATB15 = 0;
+         if (prox_range > 8)
+         {
+            LATBbits.LATB14 = 0;
+            LATBbits.LATB15 = 1;
+            delay_ms(1000);
+            LATBbits.LATB14 = 0;
+            LATBbits.LATB15 = 0;
+         }
          increase_resistance = 0;   
       }
       
       if (decrease_resistance == 1) // PC command received, decrease resistance.
       {
-         LATBbits.LATB14 = 1;
-         LATBbits.LATB15 = 0;         
-         delay_ms(1000);
-         LATBbits.LATB14 = 0;
-         LATBbits.LATB15 = 0;
+         if (prox_range < 24)
+         {
+            LATBbits.LATB14 = 1;
+            LATBbits.LATB15 = 0;         
+            delay_ms(1000);
+            LATBbits.LATB14 = 0;
+            LATBbits.LATB15 = 0;
+         }
          decrease_resistance = 0;
       }
       //LATBINV = 0x0010; // Blink LED
@@ -363,17 +354,9 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
          bpm_interval = 0;
       }
    }
-   //rpm_interval++;
-   //if (rpm_interval > 10000) // 20 seconds.
-   //{
-   //   rpm = 3 * (rpm_detect_count - rpm_last_count);
-   //   rpm_interval = 0;
-   //   rpm_last_count = rpm_detect_count;
-   //}
    
    millisecond_counter += 2;
    
-   // Clears the interrupt flag so we don't immediately enter the interrupt again...
    IFS0CLR = 0x0200;       // clear timer 2 int flag, IFS0<9>
 } // END Timer2 ISR
 
@@ -433,12 +416,9 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
    
    if (PORTBbits.RB13 == 0)
    {
-      
-      
       rpm = 60000 / millisecond_counter;
       millisecond_counter = 0;
-      //rpm_detect_count++;
-      //rpm_last_detect_secs = session_seconds;
+      rpm_detect_count++;
       rpm_detect = 1;
    }
 
