@@ -130,12 +130,29 @@ DC - DC Switch Mode Buck Regulator.
 
             Testing VL6180X proximity sensor mounted on the magnet lever arm assembly.
     
+!["CIRCUIT"](https://github.com/dchad/PIC32-EXB/blob/master/resources/control-console.jpg "Circuit Prototype")
+
+            Testing the full prototype mounted in the control console.
     
 
-### Speed and Distance Calculation:
+### Speed and Distance Calculation.
 
+TODO:
 
 ### Rear Wheel/Front Sprocket ratio.
+
+TODO:
+
+### User Interfaces:
+
+
+#### Linux:
+
+
+#### Windows:
+
+
+#### Android:
 
 
 ## 3. ACKNOWLEDGEMENTS
