@@ -155,8 +155,24 @@ TODO:
 #### Android:
 
 
-## 3. ACKNOWLEDGEMENTS
+## 3. BUILD REQUIREMENTS
 
+### 3.1 Linux
+
+   - MPLAB X IDE 
+   - XC32 v1.40 Compiler 
+   - PIC32 PLIB Legacy Peripheral Library
+   
+   (http://www.microchip.com/development-tools/pic-and-dspic-downloads-archive)
+
+### 3.2 Windows
+
+   - MPLAB X IDE 
+   - XC32 v1.40 Compiler
+   - PIC32 PLIB Legacy Peripheral Library
+   
+   (http://www.microchip.com/development-tools/pic-and-dspic-downloads-archive)
+   
 
 ## 4. TECHNICAL NOTES
 
@@ -181,4 +197,27 @@ A = Age (in years)
 
 T = Exercise duration time (in hours)
 
+## 5. TROUBLESHOOTING
+
+### 5.1 PC Communications
+
+   1. No Serial-USB Comms on MS Windows:
+   
+     - Connect EXB controller to PC USB port.
+     - Open device manager and check COM ports available.
+     - If no COM ports then install the device driver.
+     - (FTDI232 devices - https://www.ftdichip.com/FTDrivers.htm).
+     - (CP2102 devices - https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers).
+     - Reconnect to EXB controller to PC.
+     - Open COM port properties and set port parameters to 38400 bps,1,N,8.
+     - Open serial terminal (Putty or SuperPutty recommended).
+     - Set COM port parameters as above.
+     - Open connection and type anything, characters should be echoed back.
+     - Hit enter, device will reply with "NACK" for invalid commands.
+     
+   2. No Serial-USB Comms on Linux:
+      
+      - TODO:
+      
+      
 

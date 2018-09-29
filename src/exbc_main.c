@@ -90,45 +90,45 @@
 #define VOLTS_PER_COUNT (3.3/1024)
 #define set_PR2(seconds) (seconds * SYSCLK / 256) // Timer 2 period = (20000000/256 * secs))
 
-static volatile char uart1_input_buffer[256];
-static volatile char uart2_input_buffer[256];
-static volatile int user_command_recvd;
-static volatile int user_command_length;
-static volatile int tft_msg_recvd;
-static volatile int tft_msg_length;
-static volatile int rpm_counter;
+static char uart1_input_buffer[256];
+static char uart2_input_buffer[256];
+static int user_command_recvd;
+static int user_command_length;
+static int tft_msg_recvd;
+static int tft_msg_length;
+static int rpm_counter;
 static char user_command_buffer[256];
 static char user_msg_buffer[256];
 static char tft_command_buffer[60]; // Max LCD command length is 60 bytes.
-static volatile unsigned int pulse_sample;
-static volatile unsigned int pulse_sample_buffer[500]; // 500 samples per second.
-static volatile unsigned int pulse_sample_index;
-static volatile unsigned int pulse_sample_buffer_full;
-static volatile unsigned int bpm; // pulse rate.
-static volatile unsigned int bpm_interval; // 15 second send interval.
-static volatile unsigned int get_bpm;
-static volatile unsigned int prox_range;
-static volatile unsigned int get_prox_range;
-static volatile unsigned int rpm;
-static volatile unsigned int rpm_detect;
-static volatile unsigned int rpm_interval;
-static volatile unsigned int rpm_detect_count;
-static volatile unsigned int rpm_last_detect_secs;
-static volatile unsigned int rpm_last_count;
-static volatile unsigned int average_rpm;
-static volatile unsigned int get_rpm;
-static volatile unsigned int kilojoules;
-static volatile unsigned int user_age;
-static volatile unsigned int user_weight;
-static volatile unsigned int user_gender;
-static volatile unsigned int increase_resistance;
-static volatile unsigned int decrease_resistance;
-static volatile unsigned int resistance_level;
-static volatile unsigned int session_seconds;
-static volatile unsigned int session_minutes;
-static volatile unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
-static volatile unsigned int blink_count;
-static volatile unsigned int millisecond_counter; // Timing the rpm/cadence.
+static unsigned int pulse_sample;
+static unsigned int pulse_sample_buffer[500]; // 500 samples per second.
+static unsigned int pulse_sample_index;
+static unsigned int pulse_sample_buffer_full;
+static unsigned int bpm; // pulse rate.
+static unsigned int bpm_interval; // 15 second send interval.
+static unsigned int get_bpm;
+static unsigned int prox_range;
+static unsigned int get_prox_range;
+static unsigned int rpm;
+static unsigned int rpm_detect;
+static unsigned int rpm_interval;
+static unsigned int rpm_detect_count;
+static unsigned int rpm_last_detect_secs;
+static unsigned int rpm_last_count;
+static unsigned int average_rpm;
+static unsigned int get_rpm;
+static unsigned int kilojoules;
+static unsigned int user_age;
+static unsigned int user_weight;
+static unsigned int user_gender;
+static unsigned int increase_resistance;
+static unsigned int decrease_resistance;
+static unsigned int resistance_level;
+static unsigned int session_seconds;
+static unsigned int session_minutes;
+static unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
+static unsigned int blink_count;
+static unsigned int millisecond_counter; // Timing the rpm/cadence.
 
 // Function declarations.
 int adc_read(char analog_pin);
@@ -195,7 +195,7 @@ int main(void)
    while(1)
    {
       // delay by BLINK_DELAY ms
-      delay_ms(5);
+      delay_ms(25);
       
       if (PORTAbits.RA4 == 0) // Test/reset button pressed.
       {
@@ -283,12 +283,6 @@ int main(void)
             
          get_prox_range = 0;
       }
-
-      if (rpm_detect == 1)
-      {
-         LATBINV = 0x0010; // Blink LED on pin RB5.
-         rpm_detect = 0;
-      }
    
       if (increase_resistance == 1) // PC command received, increase resistance.
       {
@@ -338,7 +332,6 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
    pulse_sample = adc_read(0);
    pulse_sample_buffer[pulse_sample_index] = pulse_sample;
    pulse_sample_index++;
-   bpm = pulse_ISR(pulse_sample);
    
    if (pulse_sample_index >= 500) // 2 millisecond sample rate.
    {
@@ -346,6 +339,7 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
       bpm_interval++;
       if (bpm_interval > 15) // Send BPM to LCD every 15 seconds.
       {
+         bpm = pulse_ISR(pulse_sample);
          //sprintf(tft_command_buffer, "BPM: %3u", bpm);
          //sprintf(user_msg_buffer, "AN0: %4u (%5.3f volts) \r\n\r\n> ", pulse_sample, pulse_sample * VOLTS_PER_COUNT);
          //TFT_print_string(tft_command_buffer);
@@ -355,7 +349,7 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
       }
    }
    
-   millisecond_counter += 2;
+   millisecond_counter = millisecond_counter + 2;
    
    IFS0CLR = 0x0200;       // clear timer 2 int flag, IFS0<9>
 } // END Timer2 ISR
@@ -419,7 +413,12 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
       rpm = 60000 / millisecond_counter;
       millisecond_counter = 0;
       rpm_detect_count++;
-      rpm_detect = 1;
+      LATBINV = 0x0010; // Blink LED on pin RB4.
+      //LATBbits.LATB4 != LATBbits.LATB4;
+   
+      sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
+      Serial_Transmit_U1(user_msg_buffer);
+      xzero(user_msg_buffer, 256);
    }
 
    IFS1bits.CNBIF = 0;    // Clear CN interrupt flag.    
