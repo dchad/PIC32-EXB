@@ -14,10 +14,10 @@
   Date: 22/08/2018
   
   NOTE: plib is DEPRECATED for the XC compiler and will not be supported in future,
-   plib will only work with XC v1.40 or earlier, download and install XC v1.40 and 
+   plib will only work with XC v1.40 or earlier, download and install XC32 v1.40 and 
    plib peripheral library from microchip website.
    Set preprocessor directive _SUPPRESS_PLIB_WARNING
-   NOTE: Harmony framework is a piece of shit bloatware, do not use. 
+   EXTRA NOTE: Harmony framework is a piece of shit bloatware, do not use. 
   
  */
 /* ************************************************************************** */
@@ -92,21 +92,21 @@
 
 static char uart1_input_buffer[256];
 static char uart2_input_buffer[256];
-static int user_command_recvd;
-static int user_command_length;
-static int tft_msg_recvd;
-static int tft_msg_length;
-static int rpm_counter;
+static unsigned int user_command_recvd;
+static unsigned int user_command_length;
+static volatile unsigned  int tft_msg_recvd;
+static volatile unsigned  int tft_msg_length;
+static unsigned int rpm_counter;
 static char user_command_buffer[256];
 static char user_msg_buffer[256];
 static char tft_command_buffer[60]; // Max LCD command length is 60 bytes.
-static unsigned int pulse_sample;
-static unsigned int pulse_sample_buffer[500]; // 500 samples per second.
-static unsigned int pulse_sample_index;
-static unsigned int pulse_sample_buffer_full;
-static unsigned int bpm; // pulse rate.
-static unsigned int bpm_interval; // 15 second send interval.
-static unsigned int get_bpm;
+static volatile unsigned int pulse_sample;
+static volatile unsigned int pulse_sample_buffer[500]; // 500 samples per second.
+static volatile unsigned int pulse_sample_index;
+static volatile unsigned int pulse_sample_buffer_full;
+static volatile unsigned int bpm; // pulse rate.
+static volatile unsigned int bpm_interval; // 15 second send interval.
+static volatile unsigned int get_bpm;
 static unsigned int prox_range;
 static unsigned int get_prox_range;
 static unsigned int rpm;
@@ -129,6 +129,7 @@ static unsigned int session_minutes;
 static unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
 static unsigned int blink_count;
 static unsigned int millisecond_counter; // Timing the rpm/cadence.
+static unsigned int debug;
 
 // Function declarations.
 int adc_read(char analog_pin);
@@ -167,8 +168,10 @@ int main(void)
    resistance_level = 1;
    session_seconds = 0;
    session_minutes = 0;
+   session_state = 0;
    blink_count = 0;
    millisecond_counter = 0;
+   debug = 0;
    xzero(uart1_input_buffer, 256); // CLEAR THE BUFFERS!!!
    xzero(uart2_input_buffer, 256);
    xzero(user_command_buffer, 256);
@@ -192,15 +195,16 @@ int main(void)
    //TFT_reset();
    //TFT_test();
    
+   delay_ms(25);
+   
    while(1)
    {
-      // delay by BLINK_DELAY ms
-      delay_ms(25);
+      //delay_ms(25);
       
       if (PORTAbits.RA4 == 0) // Test/reset button pressed.
       {
          // Test both serial ports are working.
-         Serial_Transmit_U1("Obey me and hit the button.\r\n\r\n> ");
+         // Serial_Transmit_U1("Obey me and hit the button.\r\n\r\n> ");
          // test_lcd();
          // Serial_Transmit_U1("TFT test finished.\r\n\r\n> ");
          // TODO: test proximity sensor.
@@ -210,6 +214,15 @@ int main(void)
          // TODO: test PC comms.
          // TODO: test motor control, invert motor control pins RB14 and RB15
          // TODO: reset session variables.
+         
+         switch(session_state)
+         {
+            case 0: session_state = 1; break; // Start Session. 
+            case 1: session_state = 0; break; // End Session.
+            case 2: break;
+            case 3: break; // STOP: clear all the variables.
+            default: session_state = 0;
+         }
          
          get_rpm = 1;
          get_prox_range = 1;
@@ -239,9 +252,6 @@ int main(void)
 
       if (get_rpm == 1)
       {
-         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
-         Serial_Transmit_U1(user_msg_buffer);
-         xzero(user_msg_buffer, 256);
          
          session_minutes = session_seconds / 60;
          if (session_minutes > 0)
@@ -252,7 +262,7 @@ int main(void)
          {
             average_rpm = 0;
          }
-         sprintf(user_msg_buffer, "\r\nU8:Average RPM = %3u rpm.\r\n> ", average_rpm);
+         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u : Average RPM = %3u : Detect = %5u : Minutes = %3u.\r\n> ", rpm, average_rpm, rpm_detect_count, session_minutes);
          Serial_Transmit_U1(user_msg_buffer);
          xzero(user_msg_buffer, 256);
         
@@ -309,6 +319,9 @@ int main(void)
          }
          decrease_resistance = 0;
       }
+      
+      // delay by BLINK_DELAY ms
+      //delay_ms(25);
       //LATBINV = 0x0010; // Blink LED
    }
   
@@ -349,7 +362,7 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
       }
    }
    
-   millisecond_counter = millisecond_counter + 2;
+   millisecond_counter += 2;
    
    IFS0CLR = 0x0200;       // clear timer 2 int flag, IFS0<9>
 } // END Timer2 ISR
@@ -416,9 +429,12 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
       LATBINV = 0x0010; // Blink LED on pin RB4.
       //LATBbits.LATB4 != LATBbits.LATB4;
    
-      sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
-      Serial_Transmit_U1(user_msg_buffer);
-      xzero(user_msg_buffer, 256);
+      if (session_state == 1)
+      {
+         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
+         Serial_Transmit_U1(user_msg_buffer);
+         xzero(user_msg_buffer, 256);
+      }
    }
 
    IFS1bits.CNBIF = 0;    // Clear CN interrupt flag.    

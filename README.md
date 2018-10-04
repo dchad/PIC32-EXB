@@ -1,6 +1,6 @@
 # PIC32-EXB
 
-Replace a dead computer on a magnetic resistance exercise bike, new design implemented with a PIC32MX270F256B microcontroller.
+Replace a dead controller on a magnetic resistance exercise bike, new design implemented with a PIC32MX270F256B microcontroller.
 
 TODO: everything.
 
@@ -89,7 +89,7 @@ Open Smart 2.4" TFT LCD Touch screen.
 
 LED Pulse Sensor.
 
-Laser ToF Proximity Sensor.
+VL6180X Laser ToF Proximity Sensor.
 
 L9110 H-Bridge Motor Driver.
 
@@ -154,6 +154,7 @@ TODO:
 
 #### Android:
 
+TODO: Add a Bluetooth module, everything is better with Bluetooth.
 
 ## 3. BUILD REQUIREMENTS
 
@@ -208,7 +209,7 @@ T = Exercise duration time (in hours)
      - If no COM ports then install the device driver.
      - (FTDI232 devices - https://www.ftdichip.com/FTDrivers.htm).
      - (CP2102 devices - https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers).
-     - Reconnect to EXB controller to PC.
+     - Reconnect the EXB controller to PC.
      - Open COM port properties and set port parameters to 38400 bps,1,N,8.
      - Open serial terminal (Putty or SuperPutty recommended).
      - Set COM port parameters as above.
