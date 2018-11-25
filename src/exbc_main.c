@@ -129,6 +129,9 @@ static unsigned int session_minutes;
 static unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
 static unsigned int blink_count;
 static unsigned int millisecond_counter; // Timing the rpm/cadence.
+static float speed;
+static float average_speed;
+static float distance;
 static unsigned int debug;
 
 // Function declarations.
@@ -171,6 +174,9 @@ int main(void)
    session_state = 0;
    blink_count = 0;
    millisecond_counter = 0;
+   speed = 0.0;
+   average_speed = 0.0;
+   distance = 0.0;
    debug = 0;
    xzero(uart1_input_buffer, 256); // CLEAR THE BUFFERS!!!
    xzero(uart2_input_buffer, 256);
@@ -195,11 +201,11 @@ int main(void)
    //TFT_reset();
    //TFT_test();
    
-   delay_ms(25);
+   delay_ms(250);  // Wait for things to settle down or weird stuff happens to the interrupts.
    
    while(1)
    {
-      //delay_ms(25);
+      //delay_ms(250);
       
       if (PORTAbits.RA4 == 0) // Test/reset button pressed.
       {
@@ -426,15 +432,18 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
       rpm = 60000 / millisecond_counter;
       millisecond_counter = 0;
       rpm_detect_count++;
-      LATBINV = 0x0010; // Blink LED on pin RB4.
-      //LATBbits.LATB4 != LATBbits.LATB4;
+      //distance(metres) = pedal revolutions * pedal to rear wheel gear ration (6.5) * rear wheel diameter(280) * PI / 1000;
+      distance = rpm_detect_count * 5.717;
+      average_speed = (distance / 1000.0) / ((float)session_seconds / 3600.0);  // km/h = distance metres * 1000 / session_seconds / 3600
+      //LATBINV = 0x0010; // Blink LED on pin RB4. NOTE: for some reason this blinks RB5
+      LATBbits.LATB4 = !LATBbits.LATB4; // DO NOT use != operator, it does not work.
    
-      if (session_state == 1)
-      {
-         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm.\r\n> ", rpm);
+      //if (session_state == 1)
+      //{
+         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm : DETECT = %u : DISTANCE = %3.2f : SPEED = %3.2f\r\n> ", rpm, rpm_detect_count, distance, average_speed);
          Serial_Transmit_U1(user_msg_buffer);
          xzero(user_msg_buffer, 256);
-      }
+      //}
    }
 
    IFS1bits.CNBIF = 0;    // Clear CN interrupt flag.    

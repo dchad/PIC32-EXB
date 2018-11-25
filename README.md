@@ -181,15 +181,24 @@ TODO: Add a Bluetooth module, everything is better with Bluetooth.
 
 (LED HRM sensor https://www.sparkfun.com/products/11574)
 
+### 4.1 Speed and Distance Calculations
 
-Calorie/kilojoules calculation:
+Distane (metres) = (Pedal Revolutions * Gear Ratio (6.5) * Rear Wheel Diameter (280mm) * PI) / 1000)
+
+Average Speed (km/h) = (Distance / 1000) / (Session Time (seconds) / 3600)
+
+### 4.2 Calorie/kilojoules calculation
 
 Male: C = ((-55.0969 + (0.6309 x HR) + (0.1988 x W) + (0.2017 x A))/4.184) x 60 x T
 
 Female: C = ((-20.4022 + (0.4472 x HR) - (0.1263 x W) + (0.074 x A))/4.184) x 60 x T
+   
+kiloJoules = 4.184 * C
 
 where
 
+C = Large Calorie (kcal, 1000 * small calorie)
+      
 HR = Heart rate (in beats/minute)
 
 W = Weight (in kilograms)
