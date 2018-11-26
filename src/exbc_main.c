@@ -117,10 +117,9 @@ static unsigned int rpm_last_detect_secs;
 static unsigned int rpm_last_count;
 static unsigned int average_rpm;
 static unsigned int get_rpm;
-static unsigned int kilojoules;
 static unsigned int user_age;
 static unsigned int user_weight;
-static unsigned int user_gender;
+static unsigned int user_gender; // 0 == MALE, 1 == FEMALE.
 static unsigned int increase_resistance;
 static unsigned int decrease_resistance;
 static unsigned int resistance_level;
@@ -132,6 +131,7 @@ static unsigned int millisecond_counter; // Timing the rpm/cadence.
 static float speed;
 static float average_speed;
 static float distance;
+static float kilojoules;
 static unsigned int debug;
 
 // Function declarations.
@@ -141,6 +141,10 @@ void configure_io();
 void configure_interrupts();
 void initialise_vars();
 void process_user_command();
+float calculate_kilojoules();
+void set_user_age(char *msg);
+void set_user_weight(char *msg);
+void set_user_gender(char *msg);
 
 
 int main(void) 
@@ -346,11 +350,12 @@ void __ISR(_CORE_TIMER_VECTOR, IPL6SOFT) CoreTimerISR(void) {
 
 // Timer2 Interrupt Service Routine
 void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
-   // TODO: READ ADC INPUT FROM PULSE SENSOR MODULE ON PIN RA0/AN0
-   // TODO: calculate RPM.
+   // READ ADC INPUT FROM PULSE SENSOR MODULE ON PIN RA0/AN0 and calculate BPM.
+   
    pulse_sample = adc_read(0);
    pulse_sample_buffer[pulse_sample_index] = pulse_sample;
    pulse_sample_index++;
+   bpm = pulse_ISR(pulse_sample);
    
    if (pulse_sample_index >= 500) // 2 millisecond sample rate.
    {
@@ -358,9 +363,12 @@ void __ISR(8, IPL4SOFT) Timer2IntHandler(void) {
       bpm_interval++;
       if (bpm_interval > 15) // Send BPM to LCD every 15 seconds.
       {
-         bpm = pulse_ISR(pulse_sample);
-         //sprintf(tft_command_buffer, "BPM: %3u", bpm);
-         //sprintf(user_msg_buffer, "AN0: %4u (%5.3f volts) \r\n\r\n> ", pulse_sample, pulse_sample * VOLTS_PER_COUNT);
+         
+         sprintf(user_msg_buffer, "\r\nBPM: %3u\r\n>", bpm);
+         Serial_Transmit_U1(user_msg_buffer);
+         xzero(user_msg_buffer, 256);
+         sprintf(user_msg_buffer, "\r\nAN0: %4u (%5.3f volts) \r\n> ", pulse_sample, pulse_sample * VOLTS_PER_COUNT);
+         xzero(user_msg_buffer, 256);
          //TFT_print_string(tft_command_buffer);
          //cannot do this here, if the tft is currently executing a command it will white screen
          //and have to be reset.
@@ -432,15 +440,16 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
       rpm = 60000 / millisecond_counter;
       millisecond_counter = 0;
       rpm_detect_count++;
-      //distance(metres) = pedal revolutions * pedal to rear wheel gear ration (6.5) * rear wheel diameter(280) * PI / 1000;
+      //distance(metres) = pedal revolutions * pedal to rear wheel gear ration (6.5) * rear wheel diameter(280mm) * PI / 1000;
       distance = rpm_detect_count * 5.717;
-      average_speed = (distance / 1000.0) / ((float)session_seconds / 3600.0);  // km/h = distance metres * 1000 / session_seconds / 3600
+      average_speed = (distance / 1000.0) / ((float)session_seconds / 3600.0);  // km/h = distance metres / 1000 / session_seconds / 3600
       //LATBINV = 0x0010; // Blink LED on pin RB4. NOTE: for some reason this blinks RB5
       LATBbits.LATB4 = !LATBbits.LATB4; // DO NOT use != operator, it does not work.
    
       //if (session_state == 1)
       //{
-         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm : DETECT = %u : DISTANCE = %3.2f : SPEED = %3.2f\r\n> ", rpm, rpm_detect_count, distance, average_speed);
+      float kj = calculate_kilojoules();
+         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm : DETECT = %u : DISTANCE = %3.2f : SPEED = %3.2f : KJ = %4.2f\r\n> ", rpm, rpm_detect_count, distance, average_speed, kj);
          Serial_Transmit_U1(user_msg_buffer);
          xzero(user_msg_buffer, 256);
       //}
@@ -586,7 +595,10 @@ void process_user_command()
    // 16. SET USER GENDER ("UG: [ M | F ] \r\n" )
    // 17. INCREASE RESISTANCE ("UH:\r\n")
    // 18. DECREASE RESISTANCE ("UI:\r\n")
-   // 
+   // 19. CALCULATE KILOJOULES ("UJ:\r\n")
+   // 20. SET USER AGE ("UK: xxx\r\n")
+   // 21. SET USER WEIGHT ("UL: xxxx\r\n")
+   // 22. SET USER GENDER ("UM: [M | F]\r\n")
    // A user command always receives a response in the form of:
    // Ux:<data>\r\n    for data requests.
    // Ux:ACK\r\n       for commands with no data response.
@@ -613,6 +625,10 @@ void process_user_command()
       case 'G': break;
       case 'H': increase_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
       case 'I': decrease_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
+      case 'J': calculate_kilojoules(); break;
+      case 'K': set_user_age(uart1_input_buffer); break;
+      case 'L': set_user_weight(uart1_input_buffer); break;
+      case 'M': set_user_gender(uart1_input_buffer); break;
       default: Serial_Transmit_U1("\r\nNACK!\r\n\r\n> ");
    }
    
@@ -623,6 +639,50 @@ void initialise_vars()
 {
    return;
 }
+
+float calculate_kilojoules()
+{
+   float session_minutes;
+   
+   // MaleEE = (-55.0969 + 0.6309 x heart rate + 0.1988 x weight + 0.2017 x age) * session_minutes
+   // FemaleEE (-20.4022 + 0.4472 x heart rate - 0.1263 x weight + 0.074 x age) * session_minutes
+   
+   // TEST:
+   user_gender = 0;
+   user_weight = 80;
+   user_age = 50;
+   bpm = 80;
+   
+   session_minutes = (float)session_seconds / 60.0;
+   
+   if (user_gender == 0) // MALE
+   {
+      kilojoules = ((-55.0969 + (0.6309 * bpm) + (0.1988 * user_weight) + (0.2017 * user_age)) * session_minutes);
+   }
+   else
+   {
+   
+      kilojoules = ((-20.4022 + (0.4472 * bpm) - (0.1263 * user_weight) + (0.074 * user_age)) * session_minutes);
+   }
+   
+   return(kilojoules);
+}
+
+void set_user_age(char *msg)
+{
+
+}
+
+void set_user_weight(char *msg)
+{
+
+}
+
+void set_user_gender(char *msg)
+{
+
+}
+
 
 /* *****************************************************************************
  End of File
