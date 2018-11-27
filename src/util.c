@@ -146,3 +146,66 @@ void binary_to_ASCIIconvert(int n)
    bcdtens = bcdtens + 0x30;
    bcdunits = n + 0x30;
 }
+
+char *ltrim(char *s)
+{
+    while(isspace(*s)) s++;
+    return s;
+}
+
+char *rtrim(char *s)
+{
+    char* back = s + strlen(s);
+    while(isspace(*--back));
+    *(back+1) = '\0';
+    return s;
+}
+
+char *trim(char *s)
+{
+    return rtrim(ltrim(s));
+}
+
+void uppercase(char *s)
+{
+   while ( *s != '\0' )
+   {
+      *s = toupper((unsigned char) *s);
+      ++s;
+   }
+   
+   return;
+}
+
+int replacechar(char *str, char orig, char rep) 
+{
+    char *ix = str;
+    int n = 0;
+    while((ix = strchr(ix, orig)) != NULL) 
+    {
+        *ix++ = rep;
+        n++;
+    }
+    return(n);
+}
+
+int string_to_int(char *str)
+{
+  int i_result;
+  int i_sign;
+
+  i_result = 0;
+  i_sign = 1;
+  while (('-' == (*str)) || ((*str) == '+'))
+  {
+      if (*str == '-')
+        i_sign = i_sign * -1;
+      str++;
+  }
+  while ((*str >= '0') && (*str <= '9'))
+  {
+      i_result = (i_result * 10) + ((*str) - '0');
+      str++;
+  }
+  return (i_result * i_sign);
+}

@@ -145,6 +145,7 @@ float calculate_kilojoules();
 void set_user_age(char *msg);
 void set_user_weight(char *msg);
 void set_user_gender(char *msg);
+void send_kilojoules();
 
 
 int main(void) 
@@ -574,7 +575,7 @@ void process_user_command()
    // where Ux = { U1, U2, U3, U4, U5, U6, U7, U8, U9, UA, UB, UC ... }
    // is the command identifier, followed by a colon and optional data. 
    // All messages are ASCII encoded character strings terminated
-   // with "\r\n" (0x0D, 0x0A). Spaces are not required in message strings.
+   // with "\r\n" (0x0D, 0x0A).
    //
    // Example commands:
    // 1. START ("U1:\r\n")
@@ -590,15 +591,15 @@ void process_user_command()
    // 11. SEND SPEED
    // 12. SEND DISTANCE
    // 13. SEND RESISTANCE LEVEL
-   // 14. SET USER AGE ("UE: xxx\r\n"), xxx = years.
-   // 15. SET USER WEIGHT ("UF: xxx\r\n"), xxx = kilograms
-   // 16. SET USER GENDER ("UG: [ M | F ] \r\n" )
+   // 14. SET USER AGE ("UE:xxx\r\n"), xxx = years.
+   // 15. SET USER WEIGHT ("UF:xxx\r\n"), xxx = kilograms
+   // 16. SET USER GENDER ("UG:[ M | F ] \r\n" )
    // 17. INCREASE RESISTANCE ("UH:\r\n")
    // 18. DECREASE RESISTANCE ("UI:\r\n")
    // 19. CALCULATE KILOJOULES ("UJ:\r\n")
-   // 20. SET USER AGE ("UK: xxx\r\n")
-   // 21. SET USER WEIGHT ("UL: xxxx\r\n")
-   // 22. SET USER GENDER ("UM: [M | F]\r\n")
+   // 20. SEND USER AGE ("UK:\r\n")
+   // 21. SEND USER WEIGHT ("UL:\r\n")
+   // 22. SEND USER GENDER ("UM:\r\n")
    // A user command always receives a response in the form of:
    // Ux:<data>\r\n    for data requests.
    // Ux:ACK\r\n       for commands with no data response.
@@ -620,15 +621,15 @@ void process_user_command()
       case 'B': break;
       case 'C': break;
       case 'D': break;
-      case 'E': break;
-      case 'F': break;
-      case 'G': break;
+      case 'E': set_user_age(uart1_input_buffer); break;
+      case 'F': set_user_weight(uart1_input_buffer); break;
+      case 'G': set_user_gender(uart1_input_buffer); break;
       case 'H': increase_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
       case 'I': decrease_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
-      case 'J': calculate_kilojoules(); break;
-      case 'K': set_user_age(uart1_input_buffer); break;
-      case 'L': set_user_weight(uart1_input_buffer); break;
-      case 'M': set_user_gender(uart1_input_buffer); break;
+      case 'J': send_kilojoules(); break;
+      case 'K': break;
+      case 'L': break;
+      case 'M': break;
       default: Serial_Transmit_U1("\r\nNACK!\r\n\r\n> ");
    }
    
@@ -670,17 +671,84 @@ float calculate_kilojoules()
 
 void set_user_age(char *msg)
 {
-
-}
-
-void set_user_weight(char *msg)
-{
-
+   int buf_idx, msg_idx, msg_len;
+   char num_str[16];
+   
+   xzero(num_str, 16);
+   msg_idx = 0;
+   msg_len = strlen(msg);
+   
+   for (buf_idx = 3; buf_idx < msg_len; buf_idx++)
+   {
+      if (msg[buf_idx] < 32)   /* Look for 0x0A or 0x0D message delimiters. */
+      {
+         break;
+      }
+      else
+      {
+         num_str[msg_idx] = msg[buf_idx]; /* Add character to the reply message buffer. */
+         msg_idx++;
+      }
+   }
+   
+   user_age = string_to_int(num_str);
+   
+   return;
 }
 
 void set_user_gender(char *msg)
 {
+   if (msg[3] == '0')
+   {
+      user_gender = 0;
+   }
+   else if (msg[3] == '1')
+   {
+      user_gender = 1;
+   }
+   else
+   {
+      user_gender = 2;
+   }
+   
+   return;
+}
 
+void set_user_weight(char *msg)
+{
+   int buf_idx, msg_idx, msg_len;
+   char num_str[16];
+   
+   xzero(num_str, 16);
+   msg_idx = 0;
+   msg_len = strlen(msg);
+   
+   for (buf_idx = 3; buf_idx < msg_len; buf_idx++)
+   {
+      if (msg[buf_idx] < 32)   /* Look for 0x0A or 0x0D message delimiters. */
+      {
+         break;
+      }
+      else
+      {
+         num_str[msg_idx] = msg[buf_idx]; /* Add character to the reply message buffer. */
+         msg_idx++;
+      }
+   }
+   
+   user_weight = string_to_int(num_str);
+   
+   return;
+}
+
+void send_kilojoules()
+{
+   float kj = calculate_kilojoules();
+   sprintf(user_msg_buffer, "UJ:%4.2f\r\n> ", kj);
+   Serial_Transmit_U1(user_msg_buffer);
+   xzero(user_msg_buffer, 256); 
+   
+   return;
 }
 
 

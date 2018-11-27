@@ -19,6 +19,7 @@ int xstrcpy(char *out_buf, char *in_buf, int start, int end);
 void delay_ms(unsigned t);
 void delay_us(unsigned t);
 void binary_to_ASCIIconvert(int n);
+int string_to_int(char *str);
 
 #endif /* _EXAMPLE_FILE_NAME_H */
 
