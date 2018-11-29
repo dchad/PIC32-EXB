@@ -113,7 +113,7 @@ static unsigned int rpm;
 static unsigned int rpm_detect;
 static unsigned int rpm_interval;
 static unsigned int rpm_detect_count;
-static unsigned int rpm_last_detect_secs;
+static unsigned long rpm_last_detect_msecs;
 static unsigned int rpm_last_count;
 static unsigned int average_rpm;
 static unsigned int get_rpm;
@@ -127,7 +127,7 @@ static unsigned int session_seconds;
 static unsigned int session_minutes;
 static unsigned int session_state; // 0 = no session, 1 = session started, 2 = session paused, 3 = session end.
 static unsigned int blink_count;
-static unsigned int millisecond_counter; // Timing the rpm/cadence.
+static unsigned long millisecond_counter; // Timing the rpm/cadence.
 static float speed;
 static float average_speed;
 static float distance;
@@ -168,7 +168,7 @@ int main(void)
    rpm_detect = 0;
    rpm_interval = 0;
    rpm_detect_count = 0;
-   rpm_last_detect_secs = 0;
+   rpm_last_detect_msecs = 0;
    rpm_last_count = 0;
    get_rpm = 0;
    increase_resistance = 0;
@@ -229,9 +229,9 @@ int main(void)
          switch(session_state)
          {
             case 0: session_state = 1; break; // Start Session. 
-            case 1: session_state = 0; break; // End Session.
-            case 2: break;
-            case 3: break; // STOP: clear all the variables.
+            case 1: session_state = 2; break; // End Session.
+            case 2: session_state = 3; break;
+            case 3: session_state = 0; break; // STOP: clear all the variables.
             default: session_state = 0;
          }
          
@@ -439,21 +439,37 @@ void __ISR(34, IPL3SOFT) ChangeNotificationHandler(void) {
    if (PORTBbits.RB13 == 0)
    {
       rpm = 60000 / millisecond_counter;
-      millisecond_counter = 0;
+      
       rpm_detect_count++;
-      //distance(metres) = pedal revolutions * pedal to rear wheel gear ration (6.5) * rear wheel diameter(280mm) * PI / 1000;
+      //distance(metres) = pedal revolutions * pedal to rear wheel gear ratio (6.5) * rear wheel diameter(280mm) * PI / 1000;
       distance = rpm_detect_count * 5.717;
-      average_speed = (distance / 1000.0) / ((float)session_seconds / 3600.0);  // km/h = distance metres / 1000 / session_seconds / 3600
+      //average_speed = (distance * 1000.0) / ((float)session_seconds * 3600.0); km/h = distance metres / 1000 / session_seconds / 3600
+      average_speed = distance * 3.6 / (float)session_seconds;
+      //distance travelled since the last pedal detect (metres) =
+      // pedal to rear wheel gear ratio (6.5) * rear wheel diameter(280mm) * PI / 1000 * (milliseconds since last detect / 1000);
+      // = 5.717 / (milliseconds / 1000) m/s = 5717.0 / milliseconds
+      
+      float detect_time_seconds;
+      
+      detect_time_seconds = (float)millisecond_counter / 1000.0;
+      //speed(km/h) = detect_distance_metres(5.717) / detect_time_seconds * 3.6;
+      //NOTE: one pedal revolution is equal to 5.717 metres travelled by the rear wheel.
+      //Since there is one pedal revolution for each detect event, then the time interval is the
+      //milliseconds since the previous pedal detect.
+      speed = 5.717 / detect_time_seconds * 3.6;
+      
+      millisecond_counter = 0;
+      
       //LATBINV = 0x0010; // Blink LED on pin RB4. NOTE: for some reason this blinks RB5
       LATBbits.LATB4 = !LATBbits.LATB4; // DO NOT use != operator, it does not work.
    
-      //if (session_state == 1)
-      //{
-      float kj = calculate_kilojoules();
-         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm : DETECT = %u : DISTANCE = %3.2f : SPEED = %3.2f : KJ = %4.2f\r\n> ", rpm, rpm_detect_count, distance, average_speed, kj);
+      if (session_state == 1)
+      {
+         float kj = calculate_kilojoules();
+         sprintf(user_msg_buffer, "\r\nU8:RPM = %3u rpm : DETECT = %u : DISTANCE = %3.2f : SPEED = %3.2f : AVE SPEED = %3.2f : KJ = %4.2f\r\n> ", rpm, rpm_detect_count, distance, speed, average_speed, kj);
          Serial_Transmit_U1(user_msg_buffer);
          xzero(user_msg_buffer, 256);
-      //}
+      }
    }
 
    IFS1bits.CNBIF = 0;    // Clear CN interrupt flag.    
@@ -605,6 +621,7 @@ void process_user_command()
    // Ux:ACK\r\n       for commands with no data response.
    //
    
+   
    switch(uart1_input_buffer[1])
    {
       case '0': break;
@@ -624,8 +641,8 @@ void process_user_command()
       case 'E': set_user_age(uart1_input_buffer); break;
       case 'F': set_user_weight(uart1_input_buffer); break;
       case 'G': set_user_gender(uart1_input_buffer); break;
-      case 'H': increase_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
-      case 'I': decrease_resistance = 1; Serial_Transmit_U1("\r\nACK!\r\n\r\n> "); break;
+      case 'H': increase_resistance = 1; break;
+      case 'I': decrease_resistance = 1; break;
       case 'J': send_kilojoules(); break;
       case 'K': break;
       case 'L': break;
@@ -698,11 +715,11 @@ void set_user_age(char *msg)
 
 void set_user_gender(char *msg)
 {
-   if (msg[3] == '0')
+   if (msg[3] == 'M')
    {
       user_gender = 0;
    }
-   else if (msg[3] == '1')
+   else if (msg[3] == 'F')
    {
       user_gender = 1;
    }

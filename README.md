@@ -185,7 +185,7 @@ TODO: Add a Bluetooth module, everything is better with Bluetooth.
 
 Distane (metres) = (Pedal Revolutions * Gear Ratio (6.5) * Rear Wheel Diameter (280mm) * PI) / 1000)
 
-Average Speed (km/h) = (Distance / 1000) / (Session Time (seconds) / 3600)
+Average Speed (km/h) = (Distance (metres) / Session Time (seconds)) * 3.6
 
 ### 4.2 Calorie/kilojoules calculation
 
