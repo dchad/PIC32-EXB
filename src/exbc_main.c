@@ -146,6 +146,7 @@ void set_user_age(char *msg);
 void set_user_weight(char *msg);
 void set_user_gender(char *msg);
 void send_kilojoules();
+void send_pulse_sample();
 
 
 int main(void) 
@@ -616,6 +617,8 @@ void process_user_command()
    // 20. SEND USER AGE ("UK:\r\n")
    // 21. SEND USER WEIGHT ("UL:\r\n")
    // 22. SEND USER GENDER ("UM:\r\n")
+   // 23. 
+   // 24. SEND LAST PULSE SAMPLE ("UP:\r\n")
    // A user command always receives a response in the form of:
    // Ux:<data>\r\n    for data requests.
    // Ux:ACK\r\n       for commands with no data response.
@@ -647,6 +650,8 @@ void process_user_command()
       case 'K': break;
       case 'L': break;
       case 'M': break;
+      case 'N': break;
+      case 'P': send_pulse_sample(); break;
       default: Serial_Transmit_U1("\r\nNACK!\r\n\r\n> ");
    }
    
